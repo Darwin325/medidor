@@ -96,6 +96,25 @@
       letter-spacing: 0.5px;
     }
 
+    .metric-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .metric-unit-toggle {
+      background: none;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      padding: 1px 8px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: #007aff;
+      cursor: pointer;
+      margin-top: 3px;
+      letter-spacing: 0.3px;
+    }
+
     .status-bar {
       font-size: 0.78rem;
       color: #555;
@@ -316,10 +335,12 @@
       <div class="metric-item">
         <span class="metric-value" id="areaValue">0.00 m²</span>
         <span class="metric-label">Superficie</span>
+        <button class="metric-unit-toggle" id="areaUnitBtn" onclick="toggleAreaUnit()">m²</button>
       </div>
       <div class="metric-item">
         <span class="metric-value" id="perimeterValue">0.00 m</span>
         <span class="metric-label">Perímetro</span>
+        <button class="metric-unit-toggle" id="perimeterUnitBtn" onclick="togglePerimeterUnit()">m</button>
       </div>
     </div>
 
@@ -330,6 +351,7 @@
       <button id="saveBtn" class="action-btn btn-warning" disabled onclick="openSaveModal()">Guardar</button>
       <button id="historyBtn" class="action-btn btn-purple" onclick="openHistoryModal()">Ver Guardados</button>
       <button id="resetBtn" class="action-btn btn-secondary" disabled onclick="resetMeasurement()">Limpiar</button>
+      <button id="shareBtn" class="action-btn btn-warning" disabled onclick="openShareModal()">Compartir</button>
     </div>
   </div>
 
@@ -355,6 +377,22 @@
     </div>
   </div>
 
+  <div id="shareModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Compartir Medición</h3>
+        <button class="close-btn" onclick="closeModal('shareModal')">&times;</button>
+      </div>
+      <p style="font-size: 0.85rem; color: #555;">Copia el enlace o compártelo directamente por tu red preferida:</p>
+      <input type="text" id="shareLinkInput" readonly>
+      <div class="btn-group">
+        <button class="action-btn btn-secondary" onclick="copyShareLink()" style="flex: 1 1 100%;">Copiar Enlace</button>
+        <button class="action-btn btn-success" onclick="shareVia('whatsapp')" style="flex: 1 1 calc(50% - 6px);">WhatsApp</button>
+        <button class="action-btn btn-primary" onclick="shareVia('generic')" style="flex: 1 1 calc(50% - 6px);">Más...</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
@@ -366,6 +404,8 @@
     let coordinates = [];
     let pathMarkers = [];
     let currentEditingId = null;
+    let areaUnit = 'm2';
+    let perimeterUnit = 'm';
 
     const MAX_ACCURACY_THRESHOLD = 15;
     const STORAGE_KEY = 'gps_terrain_measurements';
@@ -455,6 +495,7 @@
       document.getElementById('undoBtn').disabled = false;
       document.getElementById('resetBtn').disabled = false;
       if (coordinates.length >= 3) document.getElementById('saveBtn').disabled = false;
+      if (coordinates.length >= 3) document.getElementById('shareBtn').disabled = false;
 
       updateMetricsAndMap();
     }
@@ -493,13 +534,54 @@
       updateMetricsAndMap();
     }
 
+    function formatArea(m2) {
+      return areaUnit === 'ha' ? `${(m2 / 10000).toFixed(3)} ha` : `${m2.toFixed(1)} m²`;
+    }
+
+    function formatPerimeter(m) {
+      return perimeterUnit === 'km' ? `${(m / 1000).toFixed(3)} km` : `${m.toFixed(1)} m`;
+    }
+
+    function toggleAreaUnit() {
+      areaUnit = areaUnit === 'm2' ? 'ha' : 'm2';
+      document.getElementById('areaUnitBtn').textContent = areaUnit === 'ha' ? 'ha' : 'm²';
+      renderMetrics();
+    }
+
+    function togglePerimeterUnit() {
+      perimeterUnit = perimeterUnit === 'm' ? 'km' : 'm';
+      document.getElementById('perimeterUnitBtn').textContent = perimeterUnit === 'km' ? 'km' : 'm';
+      renderMetrics();
+    }
+
+    function renderMetrics() {
+      const len = coordinates.length;
+      const areaEl = document.getElementById('areaValue');
+      const periEl = document.getElementById('perimeterValue');
+
+      if (len < 2) {
+        areaEl.textContent = formatArea(0);
+        periEl.textContent = formatPerimeter(0);
+        return;
+      }
+      if (len === 2) {
+        const line = turf.lineString(coordinates);
+        areaEl.textContent = formatArea(0);
+        periEl.textContent = formatPerimeter(turf.length(line, { units: 'meters' }));
+        return;
+      }
+      const closedCoords = [...coordinates, coordinates[0]];
+      const turfPoly = turf.polygon([closedCoords]);
+      areaEl.textContent = formatArea(turf.area(turfPoly));
+      periEl.textContent = formatPerimeter(turf.length(turfPoly, { units: 'meters' }));
+    }
+
     function updateMetricsAndMap() {
       if (polylineLayer) map.removeLayer(polylineLayer);
       if (polygonLayer) map.removeLayer(polygonLayer);
 
       if (coordinates.length < 2) {
-        document.getElementById('areaValue').textContent = "0.00 m²";
-        document.getElementById('perimeterValue').textContent = "0.00 m";
+        renderMetrics();
         return;
       }
 
@@ -507,20 +589,13 @@
 
       if (coordinates.length === 2) {
         polylineLayer = L.polyline(leafletCoords, { color: '#007aff', weight: 3, dashArray: '5, 5' }).addTo(map);
-        const line = turf.lineString(coordinates);
-        document.getElementById('perimeterValue').textContent = `${turf.length(line, { units: 'meters' }).toFixed(1)} m`;
-        document.getElementById('areaValue').textContent = "0.00 m²";
+        renderMetrics();
         return;
       }
 
       if (coordinates.length >= 3) {
         polygonLayer = L.polygon(leafletCoords, { color: '#28a745', fillColor: '#28a745', fillOpacity: 0.35, weight: 2 }).addTo(map);
-        const closedCoords = [...coordinates, coordinates[0]];
-        const turfPoly = turf.polygon([closedCoords]);
-        const areaM2 = turf.area(turfPoly);
-
-        document.getElementById('areaValue').textContent = areaM2 >= 10000 ? `${(areaM2 / 10000).toFixed(2)} ha` : `${areaM2.toFixed(1)} m²`;
-        document.getElementById('perimeterValue').textContent = `${turf.length(turfPoly, { units: 'meters' }).toFixed(1)} m`;
+        renderMetrics();
       }
     }
 
@@ -532,10 +607,11 @@
       pathMarkers.forEach(m => map.removeLayer(m));
       pathMarkers = [];
 
-      document.getElementById('areaValue').textContent = "0.00 m²";
-      document.getElementById('perimeterValue').textContent = "0.00 m";
+      document.getElementById('areaValue').textContent = formatArea(0);
+      document.getElementById('perimeterValue').textContent = formatPerimeter(0);
       document.getElementById('undoBtn').disabled = true;
       document.getElementById('saveBtn').disabled = true;
+      document.getElementById('shareBtn').disabled = true;
       document.getElementById('resetBtn').disabled = true;
       document.getElementById('toggleWalkBtn').textContent = "Iniciar Rastreo";
       document.getElementById('toggleWalkBtn').className = "action-btn btn-primary";
@@ -577,6 +653,106 @@
       const showBtn = document.getElementById('showPanelBtn');
       const collapsed = panel.classList.toggle('collapsed');
       showBtn.style.display = collapsed ? 'flex' : 'none';
+    }
+
+    /* SISTEMA DE COMPARTIR POR URL */
+
+    function encodeMeasurement(name, coords) {
+      const payload = {
+        n: name || '',
+        c: coords.map(c => [Math.round(c[0] * 1e6) / 1e6, Math.round(c[1] * 1e6) / 1e6])
+      };
+      const json = JSON.stringify(payload);
+      return btoa(unescape(encodeURIComponent(json)));
+    }
+
+    function decodeMeasurement(str) {
+      try {
+        const json = decodeURIComponent(escape(atob(str)));
+        const data = JSON.parse(json);
+        if (!data || !Array.isArray(data.c)) return null;
+        return data;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function buildShareLink(name, coords) {
+      const encoded = encodeMeasurement(name, coords);
+      const base = location.href.split('#')[0];
+      return base + '#m=' + encoded;
+    }
+
+    function buildShareMessage(link) {
+      return `Te comparto esta medición de terreno hecha con el Medidor GPS: ${link}`;
+    }
+
+    function openShareModal() {
+      if (coordinates.length < 3) { alert("Marca al menos 3 puntos para compartir."); return; }
+      let name = '';
+      if (currentEditingId !== null) {
+        const savedData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        const item = savedData.find(d => d.id === currentEditingId);
+        if (item) name = item.name;
+      }
+      const link = buildShareLink(name, coordinates);
+      document.getElementById('shareLinkInput').value = link;
+      document.getElementById('shareModal').style.display = 'flex';
+    }
+
+    function copyShareLink() {
+      const input = document.getElementById('shareLinkInput');
+      input.select();
+      const text = input.value;
+      const done = () => alert("Enlace copiado al portapapeles.");
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => {
+          document.execCommand('copy');
+          done();
+        });
+      } else {
+        document.execCommand('copy');
+        done();
+      }
+    }
+
+    function shareVia(channel) {
+      const input = document.getElementById('shareLinkInput');
+      const link = input.value;
+      if (channel === 'whatsapp') {
+        const url = 'https://wa.me/?text=' + encodeURIComponent(buildShareMessage(link));
+        window.open(url, '_blank');
+      } else {
+        if (navigator.share) {
+          navigator.share({ title: 'Medición de Terreno GPS', text: 'Te comparto esta medición de terreno', url: link })
+            .catch(() => {});
+        } else {
+          window.open(link, '_blank');
+        }
+      }
+    }
+
+    function shareSavedMeasurement(id) {
+      const savedData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      const item = savedData.find(d => d.id === id);
+      if (!item) return;
+      const link = buildShareLink(item.name, item.coordinates);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(() => alert("Enlace de \"" + item.name + "\" copiado."))
+          .catch(() => fallbackCopy(link, item.name));
+      } else {
+        fallbackCopy(link, item.name);
+      }
+    }
+
+    function fallbackCopy(text, name) {
+      const input = document.createElement('input');
+      input.value = text;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      alert("Enlace de \"" + (name || 'medición') + "\" copiado.");
     }
 
     function confirmSaveMeasurement() {
@@ -642,6 +818,7 @@
               </div>
               <div class="saved-actions">
                 <button class="btn-sm btn-primary" onclick="loadSavedMeasurement(${item.id})">Ver</button>
+                <button class="btn-sm btn-success" onclick="shareSavedMeasurement(${item.id})">Compartir</button>
                 <button class="btn-sm btn-danger" onclick="deleteSavedMeasurement(${item.id})">✕</button>
               </div>
             </div>
@@ -674,6 +851,7 @@
       document.getElementById('undoBtn').disabled = false;
       document.getElementById('resetBtn').disabled = false;
       if (coordinates.length >= 3) document.getElementById('saveBtn').disabled = false;
+      if (coordinates.length >= 3) document.getElementById('shareBtn').disabled = false;
 
       closeModal('historyModal');
     }
@@ -686,7 +864,44 @@
       openHistoryModal();
     }
 
-    window.onload = initMap;
+    function loadFromSharedUrl() {
+      if (location.hash.indexOf('#m=') !== 0) return;
+      const encoded = location.hash.substring(3);
+      const data = decodeMeasurement(encoded);
+      if (!data || data.c.length < 3) return;
+
+      resetMeasurement();
+      currentEditingId = null;
+      coordinates = data.c.map(c => [...c]);
+
+      coordinates.forEach(c => {
+        const marker = L.circleMarker([c[1], c[0]], { radius: 4, color: '#1a1a1a', fillColor: '#fff', fillOpacity: 1 }).addTo(map);
+        pathMarkers.push(marker);
+      });
+
+      updateMetricsAndMap();
+
+      const leafletCoords = coordinates.map(c => [c[1], c[0]]);
+      map.fitBounds(L.latLngBounds(leafletCoords), { padding: [50, 50] });
+
+      document.getElementById('undoBtn').disabled = false;
+      document.getElementById('resetBtn').disabled = false;
+      document.getElementById('saveBtn').disabled = false;
+      document.getElementById('shareBtn').disabled = false;
+
+      if (history.replaceState) {
+        history.replaceState(null, '', location.pathname + location.search);
+      } else {
+        location.hash = '';
+      }
+    }
+
+    function initApp() {
+      initMap();
+      loadFromSharedUrl();
+    }
+
+    window.onload = initApp;
   </script>
 </body>
 </html>
