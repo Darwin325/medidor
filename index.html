@@ -190,24 +190,49 @@
     const MAX_ACCURACY_THRESHOLD = 15; // metros
 
     function initMap() {
-      // Inicializar mapa centrado en ubicación por defecto temporal
-      map = L.map('map', { zoomControl: false }).setView([4.6097, -74.0817], 16);
+  // Inicializar mapa
+  map = L.map('map', { zoomControl: false }).setView([4.6097, -74.0817], 16);
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap'
-      }).addTo(map);
+  // 1. Capa Satelital de Alta Resolución (Muestra montañas, vegetación y terreno real)
+  const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+  });
 
-      // Evento para poner puntos manualmente con toque/clic directo en el mapa
-      map.on('click', (e) => {
-        if (currentMode === 'manual') {
-          addPoint([e.latlng.lng, e.latlng.lat]);
-        }
-      });
+  // 2. Capa Topográfica con Sombras de Relieve
+  const esriTopo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
+    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'
+  });
 
-      // Iniciar monitoeo de GPS en tiempo real
-      startGpsMonitor();
+  // 3. Capa Estándar (Callejero)
+  const openStreetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap'
+  });
+
+  // Cargar por defecto la capa Satelital (ideal para ver montañas y lotes)
+  esriSatellite.addTo(map);
+
+  // Selector de capas en la esquina superior derecha
+  const baseMaps = {
+    "Satelital (Relieve Real)": esriSatellite,
+    "Topográfico (Curvas y Sombras)": esriTopo,
+    "Mapa Callejero": openStreetMap
+  };
+
+  L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
+
+  // Escuchar eventos para la ubicación
+  map.on('click', (e) => {
+    if (currentMode === 'manual') {
+      addPoint([e.latlng.lng, e.latlng.lat]);
     }
+  });
+
+  // Iniciar monitoreo GPS
+  startGpsMonitor();
+}
 
     // Monitoreo continuo de la posición del usuario
     function startGpsMonitor() {
