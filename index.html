@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Medidor de Terrenos GPS - Híbrido</title>
+  <title>Medidor de Terrenos GPS - Con Historial</title>
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -39,14 +39,13 @@
       backdrop-filter: blur(8px);
       border-radius: 16px;
       padding: 14px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.18);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
       z-index: 1000;
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
 
-    /* Selector de modo */
     .mode-selector {
       display: flex;
       background: #e5e5ea;
@@ -117,25 +116,131 @@
 
     .btn-group {
       display: flex;
-      gap: 8px;
+      gap: 6px;
+      flex-wrap: wrap;
     }
 
     button.action-btn {
-      flex: 1;
+      flex: 1 1 calc(50% - 6px);
       padding: 10px;
       border: none;
       border-radius: 10px;
       font-weight: 600;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       cursor: pointer;
       transition: all 0.2s ease;
     }
 
     .btn-primary { background: #007aff; color: white; }
     .btn-success { background: #34c759; color: white; }
+    .btn-warning { background: #ff9500; color: white; }
     .btn-danger { background: #ff3b30; color: white; }
     .btn-secondary { background: #e5e5ea; color: #1c1c1e; }
+    .btn-purple { background: #5856d6; color: white; }
     button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-card {
+      background: #ffffff;
+      width: 90%;
+      max-width: 420px;
+      max-height: 80vh;
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 8px;
+    }
+
+    .modal-header h3 {
+      font-size: 1.1rem;
+      color: #1c1c1e;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 1.4rem;
+      color: #8e8e93;
+      cursor: pointer;
+    }
+
+    .saved-list {
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 50vh;
+      padding-right: 4px;
+    }
+
+    .saved-item {
+      background: #f8f8fa;
+      border: 1px solid #e5e5ea;
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .saved-info h4 {
+      font-size: 0.95rem;
+      color: #1a1a1a;
+      margin-bottom: 2px;
+    }
+
+    .saved-info p {
+      font-size: 0.75rem;
+      color: #666;
+    }
+
+    .saved-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-sm {
+      padding: 6px 10px;
+      font-size: 0.75rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      outline: none;
+    }
+    input[type="text"]:focus { border-color: #007aff; }
   </style>
 </head>
 <body>
@@ -143,15 +248,14 @@
   <div id="map"></div>
 
   <div class="control-panel">
-    <!-- Modalidad -->
     <div class="mode-selector">
-      <button id="modeManualBtn" class="mode-btn active" onclick="switchMode('manual')">Puntos / Trazado Manual</button>
-      <button id="modeWalkBtn" class="mode-btn" onclick="switchMode('walk')">Caminando (Trazado continuo)</button>
+      <button id="modeManualBtn" class="mode-btn active" onclick="switchMode('manual')">Puntos / Manual</button>
+      <button id="modeWalkBtn" class="mode-btn" onclick="switchMode('walk')">Caminando (Continuo)</button>
     </div>
 
     <div class="status-bar">
       <span>Estado: <span id="statusBadge" class="badge badge-off">Inactivo</span></span>
-      <span>Precisión GPS: <strong id="accuracyValue">-- m</strong></span>
+      <span>GPS: <strong id="accuracyValue">-- m</strong></span>
     </div>
 
     <div class="metrics-grid">
@@ -169,86 +273,79 @@
       <button id="addPointBtn" class="action-btn btn-success" onclick="addCurrentGpsPoint()">Marcar Punto GPS</button>
       <button id="toggleWalkBtn" class="action-btn btn-primary" style="display:none;" onclick="toggleWalkTracking()">Iniciar Rastreo</button>
       <button id="undoBtn" class="action-btn btn-secondary" disabled onclick="removeLastPoint()">Deshacer</button>
+      <button id="saveBtn" class="action-btn btn-warning" disabled onclick="openSaveModal()">Guardar</button>
+      <button id="historyBtn" class="action-btn btn-purple" onclick="openHistoryModal()">Ver Guardados</button>
       <button id="resetBtn" class="action-btn btn-secondary" disabled onclick="resetMeasurement()">Limpiar</button>
     </div>
   </div>
 
-  <!-- Leaflet JS -->
+  <div id="saveModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Guardar Terreno</h3>
+        <button class="close-btn" onclick="closeModal('saveModal')">&times;</button>
+      </div>
+      <p style="font-size: 0.85rem; color: #555;">Asigna un nombre o código de lote para identificar esta medición:</p>
+      <input type="text" id="terrainNameInput" placeholder="Ej. Lote Norte - Sector 2" maxlength="40">
+      <button class="action-btn btn-primary" onclick="confirmSaveMeasurement()" style="width: 100%;">Confirmar Guardado</button>
+    </div>
+  </div>
+
+  <div id="historyModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Mediciones Guardadas</h3>
+        <button class="close-btn" onclick="closeModal('historyModal')">&times;</button>
+      </div>
+      <div id="savedList" class="saved-list"></div>
+    </div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- Turf.js para geometría -->
   <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
   <script>
     let map, userMarker, accuracyCircle, polygonLayer, polylineLayer;
-    let watchId = null;
-    let currentMode = 'manual'; // 'manual' o 'walk'
+    let currentMode = 'manual';
     let isWalking = false;
-    let currentLatLng = null; // Última posición GPS detectada [lat, lng]
-    let coordinates = []; // Formato GeoJSON: [lng, lat]
+    let currentLatLng = null;
+    let coordinates = [];
     let pathMarkers = [];
 
-    const MAX_ACCURACY_THRESHOLD = 15; // metros
+    const MAX_ACCURACY_THRESHOLD = 15;
+    const STORAGE_KEY = 'gps_terrain_measurements';
 
     function initMap() {
-  // Inicializar mapa
-  map = L.map('map', { zoomControl: false }).setView([4.6097, -74.0817], 16);
+      map = L.map('map', { zoomControl: false }).setView([4.6097, -74.0817], 16);
 
-  // 1. Capa Satelital de Alta Resolución (Muestra montañas, vegetación y terreno real)
-  const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19,
-    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-  });
+      const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' });
+      const esriTopo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' });
+      const openStreetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
 
-  // 2. Capa Topográfica con Sombras de Relieve
-  const esriTopo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19,
-    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'
-  });
+      esriSatellite.addTo(map);
 
-  // 3. Capa Estándar (Callejero)
-  const openStreetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '© OpenStreetMap'
-  });
+      L.control.layers({
+        "Satelital (Relieve Real)": esriSatellite,
+        "Topográfico": esriTopo,
+        "Callejero": openStreetMap
+      }, null, { position: 'topright' }).addTo(map);
 
-  // Cargar por defecto la capa Satelital (ideal para ver montañas y lotes)
-  esriSatellite.addTo(map);
+      map.on('click', (e) => {
+        if (currentMode === 'manual') addPoint([e.latlng.lng, e.latlng.lat]);
+      });
 
-  // Selector de capas en la esquina superior derecha
-  const baseMaps = {
-    "Satelital (Relieve Real)": esriSatellite,
-    "Topográfico (Curvas y Sombras)": esriTopo,
-    "Mapa Callejero": openStreetMap
-  };
-
-  L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
-
-  // Escuchar eventos para la ubicación
-  map.on('click', (e) => {
-    if (currentMode === 'manual') {
-      addPoint([e.latlng.lng, e.latlng.lat]);
+      startGpsMonitor();
     }
-  });
 
-  // Iniciar monitoreo GPS
-  startGpsMonitor();
-}
-
-    // Monitoreo continuo de la posición del usuario
     function startGpsMonitor() {
-      if (!navigator.geolocation) {
-        alert("Tu navegador no soporta GPS.");
-        return;
-      }
+      if (!navigator.geolocation) return;
 
       navigator.geolocation.watchPosition(
         (position) => {
           const { latitude, longitude, accuracy } = position.coords;
           currentLatLng = [latitude, longitude];
-
           document.getElementById('accuracyValue').textContent = `${Math.round(accuracy)} m`;
 
-          // Dibujar marcador de posición actual
           if (!userMarker) {
             userMarker = L.marker(currentLatLng).addTo(map);
             accuracyCircle = L.circle(currentLatLng, { radius: accuracy, color: '#007aff', opacity: 0.3, fillColor: '#007aff', fillOpacity: 0.1 }).addTo(map);
@@ -259,11 +356,8 @@
             accuracyCircle.setRadius(accuracy);
           }
 
-          // Si está activo el modo "Caminando", registrar puntos automáticamente
-          if (currentMode === 'walk' && isWalking) {
-            if (accuracy <= MAX_ACCURACY_THRESHOLD) {
-              addPoint([longitude, latitude], false);
-            }
+          if (currentMode === 'walk' && isWalking && accuracy <= MAX_ACCURACY_THRESHOLD) {
+            addPoint([longitude, latitude]);
           }
         },
         (err) => console.warn(`Error GPS (${err.code}): ${err.message}`),
@@ -271,11 +365,9 @@
       );
     }
 
-    // Cambiar entre modo Manual y Caminando
     function switchMode(mode) {
       if (isWalking) stopWalkTracking();
       currentMode = mode;
-
       document.getElementById('modeManualBtn').classList.toggle('active', mode === 'manual');
       document.getElementById('modeWalkBtn').classList.toggle('active', mode === 'walk');
 
@@ -292,40 +384,26 @@
       }
     }
 
-    // Poner un punto usando la ubicación GPS actual
     function addCurrentGpsPoint() {
-      if (!currentLatLng) {
-        alert("Obteniendo posición GPS... Intenta de nuevo en unos segundos.");
-        return;
-      }
+      if (!currentLatLng) { alert("Buscando GPS..."); return; }
       addPoint([currentLatLng[1], currentLatLng[0]]);
     }
 
-    // Agregar coordenada al listado
-    function addPoint(pointLngLat, showNotification = true) {
-      // Evitar puntos duplicados idénticos consecutivos
+    function addPoint(pointLngLat) {
       const lastPoint = coordinates[coordinates.length - 1];
       if (lastPoint && lastPoint[0] === pointLngLat[0] && lastPoint[1] === pointLngLat[1]) return;
 
       coordinates.push(pointLngLat);
-
-      // Crear vértice visual
-      const marker = L.circleMarker([pointLngLat[1], pointLngLat[0]], {
-        radius: 4,
-        color: '#1a1a1a',
-        fillColor: '#fff',
-        fillOpacity: 1
-      }).addTo(map);
-
+      const marker = L.circleMarker([pointLngLat[1], pointLngLat[0]], { radius: 4, color: '#1a1a1a', fillColor: '#fff', fillOpacity: 1 }).addTo(map);
       pathMarkers.push(marker);
 
       document.getElementById('undoBtn').disabled = false;
       document.getElementById('resetBtn').disabled = false;
+      if (coordinates.length >= 3) document.getElementById('saveBtn').disabled = false;
 
       updateMetricsAndMap();
     }
 
-    // Activar/Pausar rastreo en modo Caminando
     function toggleWalkTracking() {
       if (isWalking) {
         stopWalkTracking();
@@ -346,23 +424,20 @@
       document.getElementById('statusBadge').className = "badge badge-off";
     }
 
-    // Eliminar el último punto colocado
     function removeLastPoint() {
       if (coordinates.length === 0) return;
-
       coordinates.pop();
       const lastMarker = pathMarkers.pop();
       if (lastMarker) map.removeLayer(lastMarker);
 
+      if (coordinates.length < 3) document.getElementById('saveBtn').disabled = true;
       if (coordinates.length === 0) {
         document.getElementById('undoBtn').disabled = true;
         document.getElementById('resetBtn').disabled = true;
       }
-
       updateMetricsAndMap();
     }
 
-    // Recalcular área, perímetro y refrescar capas del mapa
     function updateMetricsAndMap() {
       if (polylineLayer) map.removeLayer(polylineLayer);
       if (polygonLayer) map.removeLayer(polygonLayer);
@@ -378,39 +453,24 @@
       if (coordinates.length === 2) {
         polylineLayer = L.polyline(leafletCoords, { color: '#007aff', weight: 3, dashArray: '5, 5' }).addTo(map);
         const line = turf.lineString(coordinates);
-        const lengthMeters = turf.length(line, { units: 'meters' });
-        document.getElementById('perimeterValue').textContent = `${lengthMeters.toFixed(1)} m`;
+        document.getElementById('perimeterValue').textContent = `${turf.length(line, { units: 'meters' }).toFixed(1)} m`;
         document.getElementById('areaValue').textContent = "0.00 m²";
         return;
       }
 
       if (coordinates.length >= 3) {
-        polygonLayer = L.polygon(leafletCoords, {
-          color: '#28a745',
-          fillColor: '#28a745',
-          fillOpacity: 0.35,
-          weight: 2
-        }).addTo(map);
-
+        polygonLayer = L.polygon(leafletCoords, { color: '#28a745', fillColor: '#28a745', fillOpacity: 0.35, weight: 2 }).addTo(map);
         const closedCoords = [...coordinates, coordinates[0]];
         const turfPoly = turf.polygon([closedCoords]);
-
         const areaM2 = turf.area(turfPoly);
-        const perimeterMeters = turf.length(turfPoly, { units: 'meters' });
 
-        if (areaM2 >= 10000) {
-          document.getElementById('areaValue').textContent = `${(areaM2 / 10000).toFixed(2)} ha`;
-        } else {
-          document.getElementById('areaValue').textContent = `${areaM2.toFixed(1)} m²`;
-        }
-
-        document.getElementById('perimeterValue').textContent = `${perimeterMeters.toFixed(1)} m`;
+        document.getElementById('areaValue').textContent = areaM2 >= 10000 ? `${(areaM2 / 10000).toFixed(2)} ha` : `${areaM2.toFixed(1)} m²`;
+        document.getElementById('perimeterValue').textContent = `${turf.length(turfPoly, { units: 'meters' }).toFixed(1)} m`;
       }
     }
 
     function resetMeasurement() {
       if (isWalking) stopWalkTracking();
-
       coordinates = [];
       if (polygonLayer) map.removeLayer(polygonLayer);
       if (polylineLayer) map.removeLayer(polylineLayer);
@@ -420,9 +480,108 @@
       document.getElementById('areaValue').textContent = "0.00 m²";
       document.getElementById('perimeterValue').textContent = "0.00 m";
       document.getElementById('undoBtn').disabled = true;
+      document.getElementById('saveBtn').disabled = true;
       document.getElementById('resetBtn').disabled = true;
       document.getElementById('toggleWalkBtn').textContent = "Iniciar Rastreo";
       document.getElementById('toggleWalkBtn').className = "action-btn btn-primary";
+    }
+
+    /* SISTEMA DE PERSISTENCIA LOCAL */
+
+    function openSaveModal() {
+      if (coordinates.length < 3) return;
+      document.getElementById('terrainNameInput').value = '';
+      document.getElementById('saveModal').style.display = 'flex';
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).style.display = 'none';
+    }
+
+    function confirmSaveMeasurement() {
+      const nameInput = document.getElementById('terrainNameInput').value.trim();
+      const name = nameInput || `Terreno #${Date.now().toString().slice(-4)}`;
+
+      const closedCoords = [...coordinates, coordinates[0]];
+      const turfPoly = turf.polygon([closedCoords]);
+
+      const record = {
+        id: Date.now(),
+        name: name,
+        date: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
+        coordinates: coordinates,
+        areaM2: turf.area(turfPoly),
+        perimeterMeters: turf.length(turfPoly, { units: 'meters' })
+      };
+
+      const existingData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      existingData.unshift(record);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(existingData));
+
+      closeModal('saveModal');
+      alert(`"${name}" guardado exitosamente.`);
+    }
+
+    function openHistoryModal() {
+      const listContainer = document.getElementById('savedList');
+      const savedData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+      if (savedData.length === 0) {
+        listContainer.innerHTML = '<p style="text-align:center; color:#8e8e93; font-size:0.9rem; padding: 20px;">No tienes mediciones guardadas aún.</p>';
+      } else {
+        listContainer.innerHTML = savedData.map(item => {
+          const areaDisplay = item.areaM2 >= 10000 
+            ? `${(item.areaM2 / 10000).toFixed(2)} ha` 
+            : `${item.areaM2.toFixed(1)} m²`;
+
+          return `
+            <div class="saved-item">
+              <div class="saved-info">
+                <h4>${item.name}</h4>
+                <p>📅 ${item.date} | 📐 <strong>${areaDisplay}</strong> (${item.perimeterMeters.toFixed(1)} m)</p>
+              </div>
+              <div class="saved-actions">
+                <button class="btn-sm btn-primary" onclick="loadSavedMeasurement(${item.id})">Ver</button>
+                <button class="btn-sm btn-danger" onclick="deleteSavedMeasurement(${item.id})">✕</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      document.getElementById('historyModal').style.display = 'flex';
+    }
+
+    function loadSavedMeasurement(id) {
+      const savedData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      const item = savedData.find(d => d.id === id);
+      if (!item) return;
+
+      resetMeasurement();
+      coordinates = [...item.coordinates];
+
+      coordinates.forEach(c => {
+        const marker = L.circleMarker([c[1], c[0]], { radius: 4, color: '#1a1a1a', fillColor: '#fff', fillOpacity: 1 }).addTo(map);
+        pathMarkers.push(marker);
+      });
+
+      updateMetricsAndMap();
+
+      const leafletCoords = coordinates.map(c => [c[1], c[0]]);
+      map.fitBounds(L.latLngBounds(leafletCoords), { padding: [50, 50] });
+
+      document.getElementById('undoBtn').disabled = false;
+      document.getElementById('resetBtn').disabled = false;
+
+      closeModal('historyModal');
+    }
+
+    function deleteSavedMeasurement(id) {
+      if (!confirm("¿Seguro que deseas eliminar esta medición?")) return;
+      let savedData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      savedData = savedData.filter(d => d.id !== id);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedData));
+      openHistoryModal();
     }
 
     window.onload = initMap;
