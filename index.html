@@ -7,334 +7,17 @@
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-
-    body, html {
-      height: 100%;
-      width: 100%;
-      overflow: hidden;
-      position: fixed;
-      overscroll-behavior: none;
-    }
-
-    #map {
-      height: 100vh;
-      width: 100vw;
-      z-index: 1;
-    }
-
-    .control-panel {
-      position: absolute;
-      bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-      left: 50%;
-      transform: translateX(-50%);
-      width: 94%;
-      max-width: 460px;
-      background: rgba(255, 255, 255, 0.96);
-      backdrop-filter: blur(8px);
-      border-radius: 18px;
-      padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px));
-      box-shadow: 0 10px 25px rgba(0,0,0,0.25);
-      z-index: 1000;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .mode-selector {
-      display: flex;
-      background: #e5e5ea;
-      padding: 3px;
-      border-radius: 10px;
-      gap: 4px;
-    }
-
-    .mode-btn {
-      flex: 1;
-      padding: 12px 4px;
-      min-height: 44px;
-      border: none;
-      background: transparent;
-      border-radius: 8px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: #555;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .mode-btn.active {
-      background: #ffffff;
-      color: #007aff;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
-
-    .metrics-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      background: #f4f4f6;
-      padding: 8px;
-      border-radius: 10px;
-      text-align: center;
-    }
-
-    .metric-value {
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: #1a1a1a;
-    }
-
-    .metric-label {
-      font-size: 0.7rem;
-      color: #666;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .metric-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    .metric-unit-toggle {
-      background: none;
-      border: 1px solid #ccc;
-      border-radius: 10px;
-      padding: 1px 8px;
-      font-size: 0.62rem;
-      font-weight: 700;
-      color: #007aff;
-      cursor: pointer;
-      margin-top: 3px;
-      letter-spacing: 0.3px;
-    }
-
-    .status-bar {
-      font-size: 0.78rem;
-      color: #555;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0 2px;
-    }
-
-    .badge {
-      padding: 2px 8px;
-      border-radius: 10px;
-      font-weight: 600;
-      font-size: 0.72rem;
-    }
-    .badge-off { background: #e0e0e0; color: #555; }
-    .badge-on { background: #d1e7dd; color: #0f5132; }
-
-    .btn-group {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    button.action-btn {
-      padding: 13px 8px;
-      min-height: 48px;
-      border: none;
-      border-radius: 12px;
-      font-weight: 600;
-      font-size: 0.85rem;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      line-height: 1.1;
-    }
-
-    #addPointBtn, #toggleWalkBtn, #resetBtn {
-      grid-column: 1 / -1;
-    }
-
-    .btn-primary { background: #007aff; color: white; }
-    .btn-success { background: #34c759; color: white; }
-    .btn-warning { background: #ff9500; color: white; }
-    .btn-danger { background: #ff3b30; color: white; }
-    .btn-secondary { background: #e5e5ea; color: #1c1c1e; }
-    .btn-purple { background: #5856d6; color: white; }
-    button:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    .toggle-panel-btn {
-      position: absolute;
-      top: -14px;
-      right: 10px;
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      border: none;
-      background: #ffffff;
-      color: #007aff;
-      font-size: 1rem;
-      font-weight: 700;
-      line-height: 1;
-      cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-      z-index: 1001;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0;
-    }
-
-    .control-panel.collapsed {
-      transform: translateX(-50%) translateY(calc(100% + 24px));
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .show-panel-btn {
-      position: absolute;
-      bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-      left: 50%;
-      transform: translateX(-50%);
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      border: none;
-      background: #ffffff;
-      color: #007aff;
-      font-size: 1.4rem;
-      font-weight: 700;
-      line-height: 1;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0;
-    }
-
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0,0,0,0.5);
-      backdrop-filter: blur(4px);
-      z-index: 2000;
-      display: none;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .modal-card {
-      background: #ffffff;
-      width: 92%;
-      max-width: 440px;
-      max-height: 85vh;
-      border-radius: 18px;
-      padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px));
-      box-shadow: 0 15px 35px rgba(0,0,0,0.3);
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      overflow: hidden;
-    }
-
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid #eee;
-      padding-bottom: 8px;
-    }
-
-    .modal-header h3 {
-      font-size: 1.1rem;
-      color: #1c1c1e;
-    }
-
-    .close-btn {
-      background: none;
-      border: none;
-      font-size: 1.4rem;
-      color: #8e8e93;
-      cursor: pointer;
-    }
-
-    .saved-list {
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      max-height: 50vh;
-      padding-right: 4px;
-    }
-
-    .saved-item {
-      background: #f8f8fa;
-      border: 1px solid #e5e5ea;
-      border-radius: 12px;
-      padding: 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .saved-info h4 {
-      font-size: 0.95rem;
-      color: #1a1a1a;
-      margin-bottom: 2px;
-    }
-
-    .saved-info p {
-      font-size: 0.75rem;
-      color: #666;
-    }
-
-    .saved-actions {
-      display: flex;
-      gap: 6px;
-    }
-
-    .btn-sm {
-      padding: 8px 12px;
-      font-size: 0.78rem;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-      font-weight: 600;
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    input[type="text"] {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid #ccc;
-      border-radius: 10px;
-      font-size: 0.95rem;
-      outline: none;
-    }
-    input[type="text"]:focus { border-color: #007aff; }
-  </style>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
   <div id="map"></div>
+
+  <!-- Buscador de direcciones -->
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="Buscar dirección..." />
+    <button onclick="searchAddress()">Buscar</button>
+  </div>
 
   <button id="showPanelBtn" class="show-panel-btn" onclick="toggleControlPanel()" title="Mostrar panel" style="display:none;">+</button>
 
@@ -342,7 +25,8 @@
     <button class="toggle-panel-btn" onclick="toggleControlPanel()" title="Ocultar panel">&minus;</button>
     <div class="mode-selector">
       <button id="modeManualBtn" class="mode-btn active" onclick="switchMode('manual')">Puntos / Manual</button>
-      <button id="modeWalkBtn" class="mode-btn" onclick="switchMode('walk')">Caminando (Continuo)</button>
+      <button id="modeWalkBtn" class="mode-btn" onclick="switchMode('walk')">Caminando</button>
+      <button id="modeMeasureBtn" class="mode-btn" onclick="switchMode('measure')">Medir</button>
     </div>
 
     <div class="status-bar">
@@ -366,26 +50,36 @@
     <div class="btn-group">
       <button id="addPointBtn" class="action-btn btn-success" onclick="addCurrentGpsPoint()">Marcar Punto GPS</button>
       <button id="toggleWalkBtn" class="action-btn btn-primary" style="display:none;" onclick="toggleWalkTracking()">Iniciar Rastreo</button>
-      <button id="undoBtn" class="action-btn btn-secondary" disabled onclick="removeLastPoint()">Deshacer</button>
+      <button id="undoBtn" class="action-btn btn-secondary" disabled onclick="undo()">Deshacer</button>
+      <button id="redoBtn" class="action-btn btn-secondary" disabled onclick="redo()">Rehacer</button>
       <button id="saveBtn" class="action-btn btn-warning" disabled onclick="openSaveModal()">Guardar</button>
       <button id="historyBtn" class="action-btn btn-purple" onclick="openHistoryModal()">Ver Guardados</button>
       <button id="shareBtn" class="action-btn btn-warning" disabled onclick="openShareModal()">Compartir</button>
+      <button id="exportBtn" class="action-btn btn-secondary" disabled onclick="openExportModal()">Exportar</button>
       <button id="resetBtn" class="action-btn btn-secondary" disabled onclick="resetMeasurement()">Limpiar</button>
+      <button id="clearMeasureBtn" class="action-btn btn-danger" style="display:none;" onclick="clearMeasure()">Limpiar Medida</button>
     </div>
   </div>
 
+  <!-- Modal Guardar -->
   <div id="saveModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
-        <h3>Guardar Terreno</h3>
+        <h3 id="saveModalTitle">Guardar Terreno</h3>
         <button class="close-btn" onclick="closeModal('saveModal')">&times;</button>
       </div>
-      <p style="font-size: 0.85rem; color: #555;">Asigna un nombre o código de lote para identificar esta medición:</p>
+      <p id="saveModalDesc" class="modal-note">Asigna un nombre o código de lote para identificar esta medición:</p>
       <input type="text" id="terrainNameInput" placeholder="Ej. Lote Norte - Sector 2" maxlength="40">
-      <button class="action-btn btn-primary" onclick="confirmSaveMeasurement()" style="width: 100%;">Confirmar Guardado</button>
+      <textarea id="terrainNotesInput" placeholder="Notas (opcional): referencias, linderos, observaciones..."></textarea>
+      <div>
+        <label class="modal-note" for="terrainPhotosInput" style="display:block;margin-bottom:4px;">Fotos (opcional):</label>
+        <input type="file" id="terrainPhotosInput" accept="image/*" multiple>
+      </div>
+      <button class="action-btn btn-primary" onclick="confirmSaveMeasurement()" style="grid-column: 1 / -1;">Confirmar Guardado</button>
     </div>
   </div>
 
+  <!-- Modal Historial -->
   <div id="historyModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
@@ -396,13 +90,14 @@
     </div>
   </div>
 
+  <!-- Modal Compartir -->
   <div id="shareModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
         <h3>Compartir Medición</h3>
         <button class="close-btn" onclick="closeModal('shareModal')">&times;</button>
       </div>
-      <p style="font-size: 0.85rem; color: #555;">Copia el enlace o compártelo directamente por tu red preferida:</p>
+      <p class="modal-note">Copia el enlace o compártelo directamente por tu red preferida:</p>
       <input type="text" id="shareLinkInput" readonly>
       <div class="btn-group">
         <button class="action-btn btn-secondary" onclick="copyShareLink()" style="grid-column: 1 / -1;">Copiar Enlace</button>
@@ -412,515 +107,42 @@
     </div>
   </div>
 
+  <!-- Modal Exportar / Importar -->
+  <div id="exportModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Exportar / Importar</h3>
+        <button class="close-btn" onclick="closeModal('exportModal')">&times;</button>
+      </div>
+      <p class="modal-note">Exporta la medición actual:</p>
+      <div class="export-list">
+        <button onclick="exportMeasurement('geojson')">GeoJSON (.geojson)</button>
+        <button onclick="exportMeasurement('kml')">KML (.kml) — Google Earth</button>
+        <button onclick="exportMeasurement('gpx')">GPX (.gpx) — GPS</button>
+        <button onclick="exportMeasurement('csv')">CSV (.csv) — Excel</button>
+      </div>
+      <hr style="border:none;border-top:1px solid #eee;width:100%;">
+      <p class="modal-note">Importar un archivo (KML o CSV) al mapa:</p>
+      <input type="file" id="importFileInput" accept=".kml,.csv,application/vnd.google-earth.kml+xml,text/csv">
+      <button class="action-btn btn-primary" onclick="importMeasurement()" style="grid-column: 1 / -1;">Importar Archivo</button>
+    </div>
+  </div>
+
+  <!-- Modal Detalles (fotos/notas) -->
+  <div id="detailModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="detailTitle">Detalle</h3>
+        <button class="close-btn" onclick="closeModal('detailModal')">&times;</button>
+      </div>
+      <p id="detailMeta" class="modal-note"></p>
+      <p id="detailNotes" class="modal-note" style="white-space:pre-wrap;"></p>
+      <div id="detailPhotos" class="photo-grid"></div>
+    </div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
-
-  <script>
-    let map, userMarker, accuracyCircle, polygonLayer, polylineLayer;
-    let currentMode = 'manual';
-    let isWalking = false;
-    let currentLatLng = null;
-    let coordinates = [];
-    let pathMarkers = [];
-    let currentEditingId = null;
-    let areaUnit = 'm2';
-    let perimeterUnit = 'm';
-
-    const MAX_ACCURACY_THRESHOLD = 15;
-    const STORAGE_KEY = 'gps_terrain_measurements';
-
-    function initMap() {
-      map = L.map('map', { zoomControl: false }).setView([4.6097, -74.0817], 16);
-
-      const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' });
-      const esriTopo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' });
-      const openStreetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
-
-      esriSatellite.addTo(map);
-
-      L.control.layers({
-        "Satelital (Relieve Real)": esriSatellite,
-        "Topográfico": esriTopo,
-        "Callejero": openStreetMap
-      }, null, { position: 'topright' }).addTo(map);
-
-      map.on('click', (e) => {
-        if (currentMode === 'manual') addPoint([e.latlng.lng, e.latlng.lat]);
-      });
-
-      startGpsMonitor();
-    }
-
-    function startGpsMonitor() {
-      if (!navigator.geolocation) return;
-
-      navigator.geolocation.watchPosition(
-        (position) => {
-          const { latitude, longitude, accuracy } = position.coords;
-          currentLatLng = [latitude, longitude];
-          document.getElementById('accuracyValue').textContent = `${Math.round(accuracy)} m`;
-
-          if (!userMarker) {
-            userMarker = L.marker(currentLatLng).addTo(map);
-            accuracyCircle = L.circle(currentLatLng, { radius: accuracy, color: '#007aff', opacity: 0.3, fillColor: '#007aff', fillOpacity: 0.1 }).addTo(map);
-            map.setView(currentLatLng, 18);
-          } else {
-            userMarker.setLatLng(currentLatLng);
-            accuracyCircle.setLatLng(currentLatLng);
-            accuracyCircle.setRadius(accuracy);
-          }
-
-          if (currentMode === 'walk' && isWalking && accuracy <= MAX_ACCURACY_THRESHOLD) {
-            addPoint([longitude, latitude]);
-          }
-        },
-        (err) => console.warn(`Error GPS (${err.code}): ${err.message}`),
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-      );
-    }
-
-    function switchMode(mode) {
-      if (isWalking) stopWalkTracking();
-      currentMode = mode;
-      document.getElementById('modeManualBtn').classList.toggle('active', mode === 'manual');
-      document.getElementById('modeWalkBtn').classList.toggle('active', mode === 'walk');
-
-      if (mode === 'manual') {
-        document.getElementById('addPointBtn').style.display = 'block';
-        document.getElementById('toggleWalkBtn').style.display = 'none';
-        document.getElementById('statusBadge').textContent = "Modo Puntos";
-        document.getElementById('statusBadge').className = "badge badge-off";
-      } else {
-        document.getElementById('addPointBtn').style.display = 'none';
-        document.getElementById('toggleWalkBtn').style.display = 'block';
-        document.getElementById('statusBadge').textContent = "Listo para caminar";
-        document.getElementById('statusBadge').className = "badge badge-off";
-      }
-    }
-
-    function addCurrentGpsPoint() {
-      if (!currentLatLng) { alert("Buscando GPS..."); return; }
-      addPoint([currentLatLng[1], currentLatLng[0]]);
-    }
-
-    function addPoint(pointLngLat) {
-      const lastPoint = coordinates[coordinates.length - 1];
-      if (lastPoint && lastPoint[0] === pointLngLat[0] && lastPoint[1] === pointLngLat[1]) return;
-
-      coordinates.push(pointLngLat);
-      const marker = L.circleMarker([pointLngLat[1], pointLngLat[0]], { radius: 4, color: '#1a1a1a', fillColor: '#fff', fillOpacity: 1 }).addTo(map);
-      pathMarkers.push(marker);
-
-      document.getElementById('undoBtn').disabled = false;
-      document.getElementById('resetBtn').disabled = false;
-      if (coordinates.length >= 3) document.getElementById('saveBtn').disabled = false;
-      if (coordinates.length >= 3) document.getElementById('shareBtn').disabled = false;
-
-      updateMetricsAndMap();
-    }
-
-    function toggleWalkTracking() {
-      if (isWalking) {
-        stopWalkTracking();
-      } else {
-        isWalking = true;
-        document.getElementById('toggleWalkBtn').textContent = "Pausar Rastreo";
-        document.getElementById('toggleWalkBtn').className = "action-btn btn-danger";
-        document.getElementById('statusBadge').textContent = "Trazando...";
-        document.getElementById('statusBadge').className = "badge badge-on";
-      }
-    }
-
-    function stopWalkTracking() {
-      isWalking = false;
-      document.getElementById('toggleWalkBtn').textContent = "Reanudar Rastreo";
-      document.getElementById('toggleWalkBtn').className = "action-btn btn-primary";
-      document.getElementById('statusBadge').textContent = "Pausado";
-      document.getElementById('statusBadge').className = "badge badge-off";
-    }
-
-    function removeLastPoint() {
-      if (coordinates.length === 0) return;
-      coordinates.pop();
-      const lastMarker = pathMarkers.pop();
-      if (lastMarker) map.removeLayer(lastMarker);
-
-      if (coordinates.length < 3) document.getElementById('saveBtn').disabled = true;
-      if (coordinates.length === 0) {
-        document.getElementById('undoBtn').disabled = true;
-        document.getElementById('resetBtn').disabled = true;
-      }
-      updateMetricsAndMap();
-    }
-
-    function formatArea(m2) {
-      return areaUnit === 'ha' ? `${(m2 / 10000).toFixed(3)} ha` : `${m2.toFixed(1)} m²`;
-    }
-
-    function formatPerimeter(m) {
-      return perimeterUnit === 'km' ? `${(m / 1000).toFixed(3)} km` : `${m.toFixed(1)} m`;
-    }
-
-    function toggleAreaUnit() {
-      areaUnit = areaUnit === 'm2' ? 'ha' : 'm2';
-      document.getElementById('areaUnitBtn').textContent = areaUnit === 'ha' ? 'ha' : 'm²';
-      renderMetrics();
-    }
-
-    function togglePerimeterUnit() {
-      perimeterUnit = perimeterUnit === 'm' ? 'km' : 'm';
-      document.getElementById('perimeterUnitBtn').textContent = perimeterUnit === 'km' ? 'km' : 'm';
-      renderMetrics();
-    }
-
-    function renderMetrics() {
-      const len = coordinates.length;
-      const areaEl = document.getElementById('areaValue');
-      const periEl = document.getElementById('perimeterValue');
-
-      if (len < 2) {
-        areaEl.textContent = formatArea(0);
-        periEl.textContent = formatPerimeter(0);
-        return;
-      }
-      if (len === 2) {
-        const line = turf.lineString(coordinates);
-        areaEl.textContent = formatArea(0);
-        periEl.textContent = formatPerimeter(turf.length(line, { units: 'meters' }));
-        return;
-      }
-      const closedCoords = [...coordinates, coordinates[0]];
-      const turfPoly = turf.polygon([closedCoords]);
-      areaEl.textContent = formatArea(turf.area(turfPoly));
-      periEl.textContent = formatPerimeter(turf.length(turfPoly, { units: 'meters' }));
-    }
-
-    function updateMetricsAndMap() {
-      if (polylineLayer) map.removeLayer(polylineLayer);
-      if (polygonLayer) map.removeLayer(polygonLayer);
-
-      if (coordinates.length < 2) {
-        renderMetrics();
-        return;
-      }
-
-      const leafletCoords = coordinates.map(c => [c[1], c[0]]);
-
-      if (coordinates.length === 2) {
-        polylineLayer = L.polyline(leafletCoords, { color: '#007aff', weight: 3, dashArray: '5, 5' }).addTo(map);
-        renderMetrics();
-        return;
-      }
-
-      if (coordinates.length >= 3) {
-        polygonLayer = L.polygon(leafletCoords, { color: '#28a745', fillColor: '#28a745', fillOpacity: 0.35, weight: 2 }).addTo(map);
-        renderMetrics();
-      }
-    }
-
-    function resetMeasurement() {
-      if (isWalking) stopWalkTracking();
-      coordinates = [];
-      if (polygonLayer) map.removeLayer(polygonLayer);
-      if (polylineLayer) map.removeLayer(polylineLayer);
-      pathMarkers.forEach(m => map.removeLayer(m));
-      pathMarkers = [];
-
-      document.getElementById('areaValue').textContent = formatArea(0);
-      document.getElementById('perimeterValue').textContent = formatPerimeter(0);
-      document.getElementById('undoBtn').disabled = true;
-      document.getElementById('saveBtn').disabled = true;
-      document.getElementById('shareBtn').disabled = true;
-      document.getElementById('resetBtn').disabled = true;
-      document.getElementById('toggleWalkBtn').textContent = "Iniciar Rastreo";
-      document.getElementById('toggleWalkBtn').className = "action-btn btn-primary";
-      currentEditingId = null;
-    }
-
-    /* SISTEMA DE PERSISTENCIA LOCAL */
-
-    function openSaveModal() {
-      if (coordinates.length < 3) return;
-      const modal = document.getElementById('saveModal');
-      const modalTitle = modal.querySelector('h3');
-      const modalDesc = modal.querySelector('p');
-      const confirmBtn = modal.querySelector('button.action-btn');
-      const nameInput = document.getElementById('terrainNameInput');
-
-      if (currentEditingId !== null) {
-        const savedData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-        const item = savedData.find(d => d.id === currentEditingId);
-        modalTitle.textContent = 'Actualizar Terreno';
-        modalDesc.textContent = 'Vas a sobrescribir la medición que tienes abierta con los cambios actuales:';
-        confirmBtn.textContent = 'Confirmar Actualización';
-        nameInput.value = item ? item.name : '';
-      } else {
-        modalTitle.textContent = 'Guardar Terreno';
-        modalDesc.textContent = 'Asigna un nombre o código de lote para identificar esta medición:';
-        confirmBtn.textContent = 'Confirmar Guardado';
-        nameInput.value = '';
-      }
-      modal.style.display = 'flex';
-    }
-
-    function closeModal(modalId) {
-      document.getElementById(modalId).style.display = 'none';
-    }
-
-    function toggleControlPanel() {
-      const panel = document.getElementById('controlPanel');
-      const showBtn = document.getElementById('showPanelBtn');
-      const collapsed = panel.classList.toggle('collapsed');
-      showBtn.style.display = collapsed ? 'flex' : 'none';
-    }
-
-    /* SISTEMA DE COMPARTIR POR URL */
-
-    function encodeMeasurement(name, coords) {
-      const payload = {
-        n: name || '',
-        c: coords.map(c => [Math.round(c[0] * 1e6) / 1e6, Math.round(c[1] * 1e6) / 1e6])
-      };
-      const json = JSON.stringify(payload);
-      return btoa(unescape(encodeURIComponent(json)));
-    }
-
-    function decodeMeasurement(str) {
-      try {
-        const json = decodeURIComponent(escape(atob(str)));
-        const data = JSON.parse(json);
-        if (!data || !Array.isArray(data.c)) return null;
-        return data;
-      } catch (e) {
-        return null;
-      }
-    }
-
-    function buildShareLink(name, coords) {
-      const encoded = encodeMeasurement(name, coords);
-      const base = location.href.split('#')[0];
-      return base + '#m=' + encoded;
-    }
-
-    function buildShareMessage(link) {
-      return `Te comparto esta medición de terreno hecha con el Medidor GPS: ${link}`;
-    }
-
-    function openShareModal() {
-      if (coordinates.length < 3) { alert("Marca al menos 3 puntos para compartir."); return; }
-      let name = '';
-      if (currentEditingId !== null) {
-        const savedData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-        const item = savedData.find(d => d.id === currentEditingId);
-        if (item) name = item.name;
-      }
-      const link = buildShareLink(name, coordinates);
-      document.getElementById('shareLinkInput').value = link;
-      document.getElementById('shareModal').style.display = 'flex';
-    }
-
-    function copyShareLink() {
-      const input = document.getElementById('shareLinkInput');
-      input.select();
-      const text = input.value;
-      const done = () => alert("Enlace copiado al portapapeles.");
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(done).catch(() => {
-          document.execCommand('copy');
-          done();
-        });
-      } else {
-        document.execCommand('copy');
-        done();
-      }
-    }
-
-    function shareVia(channel) {
-      const input = document.getElementById('shareLinkInput');
-      const link = input.value;
-      if (channel === 'whatsapp') {
-        const url = 'https://wa.me/?text=' + encodeURIComponent(buildShareMessage(link));
-        window.open(url, '_blank');
-      } else {
-        if (navigator.share) {
-          navigator.share({ title: 'Medición de Terreno GPS', text: 'Te comparto esta medición de terreno', url: link })
-            .catch(() => {});
-        } else {
-          window.open(link, '_blank');
-        }
-      }
-    }
-
-    function shareSavedMeasurement(id) {
-      const savedData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      const item = savedData.find(d => d.id === id);
-      if (!item) return;
-      const link = buildShareLink(item.name, item.coordinates);
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(link).then(() => alert("Enlace de \"" + item.name + "\" copiado."))
-          .catch(() => fallbackCopy(link, item.name));
-      } else {
-        fallbackCopy(link, item.name);
-      }
-    }
-
-    function fallbackCopy(text, name) {
-      const input = document.createElement('input');
-      input.value = text;
-      document.body.appendChild(input);
-      input.select();
-      document.execCommand('copy');
-      document.body.removeChild(input);
-      alert("Enlace de \"" + (name || 'medición') + "\" copiado.");
-    }
-
-    function confirmSaveMeasurement() {
-      const nameInput = document.getElementById('terrainNameInput').value.trim();
-      const name = nameInput || `Terreno #${Date.now().toString().slice(-4)}`;
-
-      const closedCoords = [...coordinates, coordinates[0]];
-      const turfPoly = turf.polygon([closedCoords]);
-
-      let savedData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-
-      if (currentEditingId !== null) {
-        const idx = savedData.findIndex(d => d.id === currentEditingId);
-        if (idx !== -1) {
-          savedData[idx] = {
-            ...savedData[idx],
-            name: name,
-            coordinates: coordinates.map(c => [...c]),
-            areaM2: turf.area(turfPoly),
-            perimeterMeters: turf.length(turfPoly, { units: 'meters' })
-          };
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(savedData));
-          closeModal('saveModal');
-          alert(`"${name}" actualizado exitosamente.`);
-          return;
-        }
-      }
-
-      const record = {
-        id: Date.now(),
-        name: name,
-        date: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
-        coordinates: coordinates,
-        areaM2: turf.area(turfPoly),
-        perimeterMeters: turf.length(turfPoly, { units: 'meters' })
-      };
-
-      currentEditingId = record.id;
-      savedData.unshift(record);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedData));
-
-      closeModal('saveModal');
-      alert(`"${name}" guardado exitosamente.`);
-    }
-
-    function openHistoryModal() {
-      const listContainer = document.getElementById('savedList');
-      const savedData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-
-      if (savedData.length === 0) {
-        listContainer.innerHTML = '<p style="text-align:center; color:#8e8e93; font-size:0.9rem; padding: 20px;">No tienes mediciones guardadas aún.</p>';
-      } else {
-        listContainer.innerHTML = savedData.map(item => {
-          const areaDisplay = item.areaM2 >= 10000 
-            ? `${(item.areaM2 / 10000).toFixed(2)} ha` 
-            : `${item.areaM2.toFixed(1)} m²`;
-
-          return `
-            <div class="saved-item">
-              <div class="saved-info">
-                <h4>${item.name}</h4>
-                <p>📅 ${item.date} | 📐 <strong>${areaDisplay}</strong> (${item.perimeterMeters.toFixed(1)} m)</p>
-              </div>
-              <div class="saved-actions">
-                <button class="btn-sm btn-primary" onclick="loadSavedMeasurement(${item.id})">Ver</button>
-                <button class="btn-sm btn-success" onclick="shareSavedMeasurement(${item.id})">Compartir</button>
-                <button class="btn-sm btn-danger" onclick="deleteSavedMeasurement(${item.id})">✕</button>
-              </div>
-            </div>
-          `;
-        }).join('');
-      }
-
-      document.getElementById('historyModal').style.display = 'flex';
-    }
-
-    function loadSavedMeasurement(id) {
-      const savedData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      const item = savedData.find(d => d.id === id);
-      if (!item) return;
-
-      resetMeasurement();
-      currentEditingId = id;
-      coordinates = [...item.coordinates];
-
-      coordinates.forEach(c => {
-        const marker = L.circleMarker([c[1], c[0]], { radius: 4, color: '#1a1a1a', fillColor: '#fff', fillOpacity: 1 }).addTo(map);
-        pathMarkers.push(marker);
-      });
-
-      updateMetricsAndMap();
-
-      const leafletCoords = coordinates.map(c => [c[1], c[0]]);
-      map.fitBounds(L.latLngBounds(leafletCoords), { padding: [50, 50] });
-
-      document.getElementById('undoBtn').disabled = false;
-      document.getElementById('resetBtn').disabled = false;
-      if (coordinates.length >= 3) document.getElementById('saveBtn').disabled = false;
-      if (coordinates.length >= 3) document.getElementById('shareBtn').disabled = false;
-
-      closeModal('historyModal');
-    }
-
-    function deleteSavedMeasurement(id) {
-      if (!confirm("¿Seguro que deseas eliminar esta medición?")) return;
-      let savedData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      savedData = savedData.filter(d => d.id !== id);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedData));
-      openHistoryModal();
-    }
-
-    function loadFromSharedUrl() {
-      if (location.hash.indexOf('#m=') !== 0) return;
-      const encoded = location.hash.substring(3);
-      const data = decodeMeasurement(encoded);
-      if (!data || data.c.length < 3) return;
-
-      resetMeasurement();
-      currentEditingId = null;
-      coordinates = data.c.map(c => [...c]);
-
-      coordinates.forEach(c => {
-        const marker = L.circleMarker([c[1], c[0]], { radius: 4, color: '#1a1a1a', fillColor: '#fff', fillOpacity: 1 }).addTo(map);
-        pathMarkers.push(marker);
-      });
-
-      updateMetricsAndMap();
-
-      const leafletCoords = coordinates.map(c => [c[1], c[0]]);
-      map.fitBounds(L.latLngBounds(leafletCoords), { padding: [50, 50] });
-
-      document.getElementById('undoBtn').disabled = false;
-      document.getElementById('resetBtn').disabled = false;
-      document.getElementById('saveBtn').disabled = false;
-      document.getElementById('shareBtn').disabled = false;
-
-      if (history.replaceState) {
-        history.replaceState(null, '', location.pathname + location.search);
-      } else {
-        location.hash = '';
-      }
-    }
-
-    function initApp() {
-      initMap();
-      loadFromSharedUrl();
-    }
-
-    window.onload = initApp;
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>
