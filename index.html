@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Medidor de Terrenos GPS - Híbrido</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body, html {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    #map {
+      height: 100vh;
+      width: 100vw;
+      z-index: 1;
+    }
+
+    .control-panel {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 92%;
+      max-width: 440px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      border-radius: 16px;
+      padding: 14px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.18);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Selector de modo */
+    .mode-selector {
+      display: flex;
+      background: #e5e5ea;
+      padding: 3px;
+      border-radius: 10px;
+      gap: 4px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      padding: 8px 4px;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #555;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .mode-btn.active {
+      background: #ffffff;
+      color: #007aff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      background: #f4f4f6;
+      padding: 8px;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .metric-value {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+
+    .metric-label {
+      font-size: 0.7rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .status-bar {
+      font-size: 0.78rem;
+      color: #555;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 2px;
+    }
+
+    .badge {
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.72rem;
+    }
+    .badge-off { background: #e0e0e0; color: #555; }
+    .badge-on { background: #d1e7dd; color: #0f5132; }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    button.action-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary { background: #007aff; color: white; }
+    .btn-success { background: #34c759; color: white; }
+    .btn-danger { background: #ff3b30; color: white; }
+    .btn-secondary { background: #e5e5ea; color: #1c1c1e; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+  <div id="map"></div>
+
+  <div class="control-panel">
+    <!-- Modalidad -->
+    <div class="mode-selector">
+      <button id="modeManualBtn" class="mode-btn active" onclick="switchMode('manual')">Puntos / Trazado Manual</button>
+      <button id="modeWalkBtn" class="mode-btn" onclick="switchMode('walk')">Caminando (Trazado continuo)</button>
+    </div>
+
+    <div class="status-bar">
+      <span>Estado: <span id="statusBadge" class="badge badge-off">Inactivo</span></span>
+      <span>Precisión GPS: <strong id="accuracyValue">-- m</strong></span>
+    </div>
+
+    <div class="metrics-grid">
+      <div class="metric-item">
+        <span class="metric-value" id="areaValue">0.00 m²</span>
+        <span class="metric-label">Superficie</span>
+      </div>
+      <div class="metric-item">
+        <span class="metric-value" id="perimeterValue">0.00 m</span>
+        <span class="metric-label">Perímetro</span>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button id="addPointBtn" class="action-btn btn-success" onclick="addCurrentGpsPoint()">Marcar Punto GPS</button>
+      <button id="toggleWalkBtn" class="action-btn btn-primary" style="display:none;" onclick="toggleWalkTracking()">Iniciar Rastreo</button>
+      <button id="undoBtn" class="action-btn btn-secondary" disabled onclick="removeLastPoint()">Deshacer</button>
+      <button id="resetBtn" class="action-btn btn-secondary" disabled onclick="resetMeasurement()">Limpiar</button>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Turf.js para geometría -->
+  <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+
+  <script>
+    let map, userMarker, accuracyCircle, polygonLayer, polylineLayer;
+    let watchId = null;
+    let currentMode = 'manual'; // 'manual' o 'walk'
+    let isWalking = false;
+    let currentLatLng = null; // Última posición GPS detectada [lat, lng]
+    let coordinates = []; // Formato GeoJSON: [lng, lat]
+    let pathMarkers = [];
+
+    const MAX_ACCURACY_THRESHOLD = 15; // metros
+
+    function initMap() {
+      // Inicializar mapa centrado en ubicación por defecto temporal
+      map = L.map('map', { zoomControl: false }).setView([4.6097, -74.0817], 16);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+      }).addTo(map);
+
+      // Evento para poner puntos manualmente con toque/clic directo en el mapa
+      map.on('click', (e) => {
+        if (currentMode === 'manual') {
+          addPoint([e.latlng.lng, e.latlng.lat]);
+        }
+      });
+
+      // Iniciar monitoeo de GPS en tiempo real
+      startGpsMonitor();
+    }
+
+    // Monitoreo continuo de la posición del usuario
+    function startGpsMonitor() {
+      if (!navigator.geolocation) {
+        alert("Tu navegador no soporta GPS.");
+        return;
+      }
+
+      navigator.geolocation.watchPosition(
+        (position) => {
+          const { latitude, longitude, accuracy } = position.coords;
+          currentLatLng = [latitude, longitude];
+
+          document.getElementById('accuracyValue').textContent = `${Math.round(accuracy)} m`;
+
+          // Dibujar marcador de posición actual
+          if (!userMarker) {
+            userMarker = L.marker(currentLatLng).addTo(map);
+            accuracyCircle = L.circle(currentLatLng, { radius: accuracy, color: '#007aff', opacity: 0.3, fillColor: '#007aff', fillOpacity: 0.1 }).addTo(map);
+            map.setView(currentLatLng, 18);
+          } else {
+            userMarker.setLatLng(currentLatLng);
+            accuracyCircle.setLatLng(currentLatLng);
+            accuracyCircle.setRadius(accuracy);
+          }
+
+          // Si está activo el modo "Caminando", registrar puntos automáticamente
+          if (currentMode === 'walk' && isWalking) {
+            if (accuracy <= MAX_ACCURACY_THRESHOLD) {
+              addPoint([longitude, latitude], false);
+            }
+          }
+        },
+        (err) => console.warn(`Error GPS (${err.code}): ${err.message}`),
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    }
+
+    // Cambiar entre modo Manual y Caminando
+    function switchMode(mode) {
+      if (isWalking) stopWalkTracking();
+      currentMode = mode;
+
+      document.getElementById('modeManualBtn').classList.toggle('active', mode === 'manual');
+      document.getElementById('modeWalkBtn').classList.toggle('active', mode === 'walk');
+
+      if (mode === 'manual') {
+        document.getElementById('addPointBtn').style.display = 'block';
+        document.getElementById('toggleWalkBtn').style.display = 'none';
+        document.getElementById('statusBadge').textContent = "Modo Puntos";
+        document.getElementById('statusBadge').className = "badge badge-off";
+      } else {
+        document.getElementById('addPointBtn').style.display = 'none';
+        document.getElementById('toggleWalkBtn').style.display = 'block';
+        document.getElementById('statusBadge').textContent = "Listo para caminar";
+        document.getElementById('statusBadge').className = "badge badge-off";
+      }
+    }
+
+    // Poner un punto usando la ubicación GPS actual
+    function addCurrentGpsPoint() {
+      if (!currentLatLng) {
+        alert("Obteniendo posición GPS... Intenta de nuevo en unos segundos.");
+        return;
+      }
+      addPoint([currentLatLng[1], currentLatLng[0]]);
+    }
+
+    // Agregar coordenada al listado
+    function addPoint(pointLngLat, showNotification = true) {
+      // Evitar puntos duplicados idénticos consecutivos
+      const lastPoint = coordinates[coordinates.length - 1];
+      if (lastPoint && lastPoint[0] === pointLngLat[0] && lastPoint[1] === pointLngLat[1]) return;
+
+      coordinates.push(pointLngLat);
+
+      // Crear vértice visual
+      const marker = L.circleMarker([pointLngLat[1], pointLngLat[0]], {
+        radius: 4,
+        color: '#1a1a1a',
+        fillColor: '#fff',
+        fillOpacity: 1
+      }).addTo(map);
+
+      pathMarkers.push(marker);
+
+      document.getElementById('undoBtn').disabled = false;
+      document.getElementById('resetBtn').disabled = false;
+
+      updateMetricsAndMap();
+    }
+
+    // Activar/Pausar rastreo en modo Caminando
+    function toggleWalkTracking() {
+      if (isWalking) {
+        stopWalkTracking();
+      } else {
+        isWalking = true;
+        document.getElementById('toggleWalkBtn').textContent = "Pausar Rastreo";
+        document.getElementById('toggleWalkBtn').className = "action-btn btn-danger";
+        document.getElementById('statusBadge').textContent = "Trazando...";
+        document.getElementById('statusBadge').className = "badge badge-on";
+      }
+    }
+
+    function stopWalkTracking() {
+      isWalking = false;
+      document.getElementById('toggleWalkBtn').textContent = "Reanudar Rastreo";
+      document.getElementById('toggleWalkBtn').className = "action-btn btn-primary";
+      document.getElementById('statusBadge').textContent = "Pausado";
+      document.getElementById('statusBadge').className = "badge badge-off";
+    }
+
+    // Eliminar el último punto colocado
+    function removeLastPoint() {
+      if (coordinates.length === 0) return;
+
+      coordinates.pop();
+      const lastMarker = pathMarkers.pop();
+      if (lastMarker) map.removeLayer(lastMarker);
+
+      if (coordinates.length === 0) {
+        document.getElementById('undoBtn').disabled = true;
+        document.getElementById('resetBtn').disabled = true;
+      }
+
+      updateMetricsAndMap();
+    }
+
+    // Recalcular área, perímetro y refrescar capas del mapa
+    function updateMetricsAndMap() {
+      if (polylineLayer) map.removeLayer(polylineLayer);
+      if (polygonLayer) map.removeLayer(polygonLayer);
+
+      if (coordinates.length < 2) {
+        document.getElementById('areaValue').textContent = "0.00 m²";
+        document.getElementById('perimeterValue').textContent = "0.00 m";
+        return;
+      }
+
+      const leafletCoords = coordinates.map(c => [c[1], c[0]]);
+
+      if (coordinates.length === 2) {
+        polylineLayer = L.polyline(leafletCoords, { color: '#007aff', weight: 3, dashArray: '5, 5' }).addTo(map);
+        const line = turf.lineString(coordinates);
+        const lengthMeters = turf.length(line, { units: 'meters' });
+        document.getElementById('perimeterValue').textContent = `${lengthMeters.toFixed(1)} m`;
+        document.getElementById('areaValue').textContent = "0.00 m²";
+        return;
+      }
+
+      if (coordinates.length >= 3) {
+        polygonLayer = L.polygon(leafletCoords, {
+          color: '#28a745',
+          fillColor: '#28a745',
+          fillOpacity: 0.35,
+          weight: 2
+        }).addTo(map);
+
+        const closedCoords = [...coordinates, coordinates[0]];
+        const turfPoly = turf.polygon([closedCoords]);
+
+        const areaM2 = turf.area(turfPoly);
+        const perimeterMeters = turf.length(turfPoly, { units: 'meters' });
+
+        if (areaM2 >= 10000) {
+          document.getElementById('areaValue').textContent = `${(areaM2 / 10000).toFixed(2)} ha`;
+        } else {
+          document.getElementById('areaValue').textContent = `${areaM2.toFixed(1)} m²`;
+        }
+
+        document.getElementById('perimeterValue').textContent = `${perimeterMeters.toFixed(1)} m`;
+      }
+    }
+
+    function resetMeasurement() {
+      if (isWalking) stopWalkTracking();
+
+      coordinates = [];
+      if (polygonLayer) map.removeLayer(polygonLayer);
+      if (polylineLayer) map.removeLayer(polylineLayer);
+      pathMarkers.forEach(m => map.removeLayer(m));
+      pathMarkers = [];
+
+      document.getElementById('areaValue').textContent = "0.00 m²";
+      document.getElementById('perimeterValue').textContent = "0.00 m";
+      document.getElementById('undoBtn').disabled = true;
+      document.getElementById('resetBtn').disabled = true;
+      document.getElementById('toggleWalkBtn').textContent = "Iniciar Rastreo";
+      document.getElementById('toggleWalkBtn').className = "action-btn btn-primary";
+    }
+
+    window.onload = initMap;
+  </script>
+</body>
+</html>
