@@ -255,8 +255,9 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
+  width: 100%;
   height: 100vh;
+  height: 100dvh;
   background: rgba(0,0,0,0.5);
   backdrop-filter: blur(4px);
   z-index: 2000;
@@ -276,7 +277,9 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   display: flex;
   flex-direction: column;
   gap: 14px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal-header {
@@ -586,7 +589,7 @@ button.action-btn:active, .btn-sm:active, .mode-btn:active, .theme-btn:active { 
     width: 100%;
     max-width: 100%;
     border-radius: 18px 18px 0 0;
-    max-height: 90vh;
+    max-height: calc(100dvh - env(safe-area-inset-bottom, 0px));
     animation: sheetUp 0.3s ease;
   }
 }
