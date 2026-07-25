@@ -139,6 +139,57 @@
     .btn-purple { background: #5856d6; color: white; }
     button:disabled { opacity: 0.4; cursor: not-allowed; }
 
+    .toggle-panel-btn {
+      position: absolute;
+      top: -14px;
+      right: 10px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      background: #ffffff;
+      color: #007aff;
+      font-size: 1rem;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+      z-index: 1001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .control-panel.collapsed {
+      transform: translateX(-50%) translateY(calc(100% + 24px));
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .show-panel-btn {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      background: #ffffff;
+      color: #007aff;
+      font-size: 1.4rem;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
     .modal-overlay {
       position: fixed;
       top: 0;
@@ -247,7 +298,10 @@
 
   <div id="map"></div>
 
-  <div class="control-panel">
+  <button id="showPanelBtn" class="show-panel-btn" onclick="toggleControlPanel()" title="Mostrar panel" style="display:none;">+</button>
+
+  <div class="control-panel" id="controlPanel">
+    <button class="toggle-panel-btn" onclick="toggleControlPanel()" title="Ocultar panel">&minus;</button>
     <div class="mode-selector">
       <button id="modeManualBtn" class="mode-btn active" onclick="switchMode('manual')">Puntos / Manual</button>
       <button id="modeWalkBtn" class="mode-btn" onclick="switchMode('walk')">Caminando (Continuo)</button>
@@ -516,6 +570,13 @@
 
     function closeModal(modalId) {
       document.getElementById(modalId).style.display = 'none';
+    }
+
+    function toggleControlPanel() {
+      const panel = document.getElementById('controlPanel');
+      const showBtn = document.getElementById('showPanelBtn');
+      const collapsed = panel.classList.toggle('collapsed');
+      showBtn.style.display = collapsed ? 'flex' : 'none';
     }
 
     function confirmSaveMeasurement() {
