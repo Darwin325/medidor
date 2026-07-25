@@ -311,6 +311,7 @@
     let currentLatLng = null;
     let coordinates = [];
     let pathMarkers = [];
+    let currentEditingId = null;
 
     const MAX_ACCURACY_THRESHOLD = 15;
     const STORAGE_KEY = 'gps_terrain_measurements';
@@ -484,14 +485,33 @@
       document.getElementById('resetBtn').disabled = true;
       document.getElementById('toggleWalkBtn').textContent = "Iniciar Rastreo";
       document.getElementById('toggleWalkBtn').className = "action-btn btn-primary";
+      currentEditingId = null;
     }
 
     /* SISTEMA DE PERSISTENCIA LOCAL */
 
     function openSaveModal() {
       if (coordinates.length < 3) return;
-      document.getElementById('terrainNameInput').value = '';
-      document.getElementById('saveModal').style.display = 'flex';
+      const modal = document.getElementById('saveModal');
+      const modalTitle = modal.querySelector('h3');
+      const modalDesc = modal.querySelector('p');
+      const confirmBtn = modal.querySelector('button.action-btn');
+      const nameInput = document.getElementById('terrainNameInput');
+
+      if (currentEditingId !== null) {
+        const savedData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        const item = savedData.find(d => d.id === currentEditingId);
+        modalTitle.textContent = 'Actualizar Terreno';
+        modalDesc.textContent = 'Vas a sobrescribir la medición que tienes abierta con los cambios actuales:';
+        confirmBtn.textContent = 'Confirmar Actualización';
+        nameInput.value = item ? item.name : '';
+      } else {
+        modalTitle.textContent = 'Guardar Terreno';
+        modalDesc.textContent = 'Asigna un nombre o código de lote para identificar esta medición:';
+        confirmBtn.textContent = 'Confirmar Guardado';
+        nameInput.value = '';
+      }
+      modal.style.display = 'flex';
     }
 
     function closeModal(modalId) {
@@ -505,6 +525,25 @@
       const closedCoords = [...coordinates, coordinates[0]];
       const turfPoly = turf.polygon([closedCoords]);
 
+      let savedData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+      if (currentEditingId !== null) {
+        const idx = savedData.findIndex(d => d.id === currentEditingId);
+        if (idx !== -1) {
+          savedData[idx] = {
+            ...savedData[idx],
+            name: name,
+            coordinates: coordinates.map(c => [...c]),
+            areaM2: turf.area(turfPoly),
+            perimeterMeters: turf.length(turfPoly, { units: 'meters' })
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(savedData));
+          closeModal('saveModal');
+          alert(`"${name}" actualizado exitosamente.`);
+          return;
+        }
+      }
+
       const record = {
         id: Date.now(),
         name: name,
@@ -514,9 +553,9 @@
         perimeterMeters: turf.length(turfPoly, { units: 'meters' })
       };
 
-      const existingData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      existingData.unshift(record);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(existingData));
+      currentEditingId = record.id;
+      savedData.unshift(record);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedData));
 
       closeModal('saveModal');
       alert(`"${name}" guardado exitosamente.`);
@@ -558,6 +597,7 @@
       if (!item) return;
 
       resetMeasurement();
+      currentEditingId = id;
       coordinates = [...item.coordinates];
 
       coordinates.forEach(c => {
@@ -572,6 +612,7 @@
 
       document.getElementById('undoBtn').disabled = false;
       document.getElementById('resetBtn').disabled = false;
+      if (coordinates.length >= 3) document.getElementById('saveBtn').disabled = false;
 
       closeModal('historyModal');
     }
