@@ -222,8 +222,8 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   position: absolute;
   top: calc(12px + env(safe-area-inset-top, 0px));
   left: 12px;
-  right: 52px;
-  z-index: 1100;
+  right: 56px;
+  z-index: 900;
   display: flex;
   gap: 6px;
 }
@@ -315,12 +315,12 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   border-radius: 12px;
   padding: 12px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
 }
 
-.saved-info { flex: 1; min-width: 0; }
+.saved-info { width: 100%; min-width: 0; }
 .saved-info h4 {
   font-size: 0.95rem;
   color: #1a1a1a;
@@ -339,11 +339,12 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  justify-content: flex-end;
+  width: 100%;
+  justify-content: stretch;
 }
 
 .btn-sm {
-  padding: 8px 12px;
+  padding: 10px 8px;
   font-size: 0.78rem;
   border-radius: 8px;
   border: none;
@@ -351,6 +352,14 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   font-weight: 600;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  text-align: center;
+  justify-content: center;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.saved-actions .btn-sm {
+  flex: 1 1 calc(50% - 6px);
 }
 
 input[type="text"], textarea {
