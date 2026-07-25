@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Medidor de Terrenos GPS - Con Historial</title>
 
   <!-- Leaflet CSS -->
@@ -20,6 +20,8 @@
       height: 100%;
       width: 100%;
       overflow: hidden;
+      position: fixed;
+      overscroll-behavior: none;
     }
 
     #map {
@@ -30,16 +32,16 @@
 
     .control-panel {
       position: absolute;
-      bottom: 16px;
+      bottom: calc(16px + env(safe-area-inset-bottom, 0px));
       left: 50%;
       transform: translateX(-50%);
-      width: 92%;
-      max-width: 440px;
-      background: rgba(255, 255, 255, 0.95);
+      width: 94%;
+      max-width: 460px;
+      background: rgba(255, 255, 255, 0.96);
       backdrop-filter: blur(8px);
-      border-radius: 16px;
-      padding: 14px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      border-radius: 18px;
+      padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px));
+      box-shadow: 0 10px 25px rgba(0,0,0,0.25);
       z-index: 1000;
       display: flex;
       flex-direction: column;
@@ -56,7 +58,8 @@
 
     .mode-btn {
       flex: 1;
-      padding: 8px 4px;
+      padding: 12px 4px;
+      min-height: 44px;
       border: none;
       background: transparent;
       border-radius: 8px;
@@ -65,6 +68,8 @@
       color: #555;
       cursor: pointer;
       transition: all 0.2s ease;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .mode-btn.active {
@@ -134,20 +139,32 @@
     .badge-on { background: #d1e7dd; color: #0f5132; }
 
     .btn-group {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
     }
 
     button.action-btn {
-      flex: 1 1 calc(50% - 6px);
-      padding: 10px;
+      padding: 13px 8px;
+      min-height: 48px;
       border: none;
-      border-radius: 10px;
+      border-radius: 12px;
       font-weight: 600;
-      font-size: 0.82rem;
+      font-size: 0.85rem;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all 0.15s ease;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      line-height: 1.1;
+    }
+
+    #addPointBtn, #toggleWalkBtn, #resetBtn {
+      grid-column: 1 / -1;
     }
 
     .btn-primary { background: #007aff; color: white; }
@@ -188,7 +205,7 @@
 
     .show-panel-btn {
       position: absolute;
-      bottom: 16px;
+      bottom: calc(16px + env(safe-area-inset-bottom, 0px));
       left: 50%;
       transform: translateX(-50%);
       width: 44px;
@@ -225,11 +242,11 @@
 
     .modal-card {
       background: #ffffff;
-      width: 90%;
-      max-width: 420px;
-      max-height: 80vh;
+      width: 92%;
+      max-width: 440px;
+      max-height: 85vh;
       border-radius: 18px;
-      padding: 20px;
+      padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px));
       box-shadow: 0 15px 35px rgba(0,0,0,0.3);
       display: flex;
       flex-direction: column;
@@ -294,12 +311,14 @@
     }
 
     .btn-sm {
-      padding: 6px 10px;
-      font-size: 0.75rem;
-      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      border-radius: 8px;
       border: none;
       cursor: pointer;
       font-weight: 600;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
 
     input[type="text"] {
@@ -350,8 +369,8 @@
       <button id="undoBtn" class="action-btn btn-secondary" disabled onclick="removeLastPoint()">Deshacer</button>
       <button id="saveBtn" class="action-btn btn-warning" disabled onclick="openSaveModal()">Guardar</button>
       <button id="historyBtn" class="action-btn btn-purple" onclick="openHistoryModal()">Ver Guardados</button>
-      <button id="resetBtn" class="action-btn btn-secondary" disabled onclick="resetMeasurement()">Limpiar</button>
       <button id="shareBtn" class="action-btn btn-warning" disabled onclick="openShareModal()">Compartir</button>
+      <button id="resetBtn" class="action-btn btn-secondary" disabled onclick="resetMeasurement()">Limpiar</button>
     </div>
   </div>
 
@@ -386,9 +405,9 @@
       <p style="font-size: 0.85rem; color: #555;">Copia el enlace o compártelo directamente por tu red preferida:</p>
       <input type="text" id="shareLinkInput" readonly>
       <div class="btn-group">
-        <button class="action-btn btn-secondary" onclick="copyShareLink()" style="flex: 1 1 100%;">Copiar Enlace</button>
-        <button class="action-btn btn-success" onclick="shareVia('whatsapp')" style="flex: 1 1 calc(50% - 6px);">WhatsApp</button>
-        <button class="action-btn btn-primary" onclick="shareVia('generic')" style="flex: 1 1 calc(50% - 6px);">Más...</button>
+        <button class="action-btn btn-secondary" onclick="copyShareLink()" style="grid-column: 1 / -1;">Copiar Enlace</button>
+        <button class="action-btn btn-success" onclick="shareVia('whatsapp')">WhatsApp</button>
+        <button class="action-btn btn-primary" onclick="shareVia('generic')">Más...</button>
       </div>
     </div>
   </div>
