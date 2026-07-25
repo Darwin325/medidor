@@ -29,4 +29,13 @@ Lista de mejoras propuestas, dividida en **Diseño** y **Funcionalidad**.
 ## Estado de implementación
 - Funcionalidad 1, 2, 3, 4, 5, 6, 7, 8, 9: ✅ implementadas.
 - Funcionalidad 10 (imagen): ⏸ pospuesta (requiere librería externa + CORS de tiles).
-- Diseño (1-10): ⏳ pendiente.
+- Diseño 1 (modo oscuro): ✅
+- Diseño 2 (bottom-sheet): ✅ en móvil (≤600px)
+- Diseño 3 (vértices numerados): ✅
+- Diseño 4 (pulso GPS): ✅
+- Diseño 5 (auto-colapsar al caminar): ✅
+- Diseño 6 (color por terreno): ✅
+- Diseño 7 (háptica): ✅
+- Diseño 8 (lista de vértices): ✅
+- Diseño 9 (indicador calidad GPS): ✅
+- Diseño 10 (micro-interacciones: pressed, splash, transiciones): ✅

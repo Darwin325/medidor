@@ -22,6 +22,7 @@
   <button id="showPanelBtn" class="show-panel-btn" onclick="toggleControlPanel()" title="Mostrar panel" style="display:none;">+</button>
 
   <div class="control-panel" id="controlPanel">
+    <button class="theme-btn" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
     <button class="toggle-panel-btn" onclick="toggleControlPanel()" title="Ocultar panel">&minus;</button>
     <div class="mode-selector">
       <button id="modeManualBtn" class="mode-btn active" onclick="switchMode('manual')">Puntos / Manual</button>
@@ -31,7 +32,7 @@
 
     <div class="status-bar">
       <span>Estado: <span id="statusBadge" class="badge badge-off">Inactivo</span></span>
-      <span>GPS: <strong id="accuracyValue">-- m</strong></span>
+      <span>GPS: <strong id="accuracyValue">-- m</strong> <span id="gpsQuality" title="Calidad de señal"><i class="bar"></i><i class="bar"></i><i class="bar"></i><i class="bar"></i></span></span>
     </div>
 
     <div class="metrics-grid">
@@ -56,6 +57,7 @@
       <button id="historyBtn" class="action-btn btn-purple" onclick="openHistoryModal()">Ver Guardados</button>
       <button id="shareBtn" class="action-btn btn-warning" disabled onclick="openShareModal()">Compartir</button>
       <button id="exportBtn" class="action-btn btn-secondary" disabled onclick="openExportModal()">Exportar</button>
+      <button id="pointsBtn" class="action-btn btn-secondary" onclick="openVerticesModal()">Ver Puntos</button>
       <button id="resetBtn" class="action-btn btn-secondary" disabled onclick="resetMeasurement()">Limpiar</button>
       <button id="clearMeasureBtn" class="action-btn btn-danger" style="display:none;" onclick="clearMeasure()">Limpiar Medida</button>
     </div>
@@ -138,6 +140,26 @@
       <p id="detailMeta" class="modal-note"></p>
       <p id="detailNotes" class="modal-note" style="white-space:pre-wrap;"></p>
       <div id="detailPhotos" class="photo-grid"></div>
+    </div>
+  </div>
+
+  <!-- Modal Lista de puntos -->
+  <div id="verticesModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Puntos del Terreno</h3>
+        <button class="close-btn" onclick="closeModal('verticesModal')">&times;</button>
+      </div>
+      <p class="modal-note">Toca un número para ir al punto. Edita lat/lng o elimínalo.</p>
+      <div id="verticesList" class="saved-list"></div>
+    </div>
+  </div>
+
+  <!-- Splash de carga -->
+  <div id="splash">
+    <div class="splash-inner">
+      <div class="splash-spinner"></div>
+      <p>Cargando Medidor GPS…</p>
     </div>
   </div>
 

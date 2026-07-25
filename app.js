@@ -14,6 +14,7 @@ let pathMarkers = [];
 let currentEditingId = null;
 let areaUnit = 'm2';
 let perimeterUnit = 'm';
+let currentColor = '#28a745';
 
 let undoStack = [];
 let redoStack = [];
@@ -27,7 +28,6 @@ const MAX_ACCURACY_THRESHOLD = 15;
 const STORAGE_KEY = 'gps_terrain_measurements';
 const DRAFT_KEY = 'gps_terrain_draft';
 
-const vertexIcon = L.divIcon({ className: 'vertex-marker', iconSize: [16, 16], iconAnchor: [8, 8] });
 const LAYER_COLORS = ['#007aff', '#ff9500', '#34c759', '#ff3b30', '#5856d6', '#ff2d55', '#1a1a1a', '#00c7be'];
 
 /* ---------------- Mapa / GPS ---------------- */
@@ -63,9 +63,11 @@ function startGpsMonitor() {
       const { latitude, longitude, accuracy } = position.coords;
       currentLatLng = [latitude, longitude];
       document.getElementById('accuracyValue').textContent = `${Math.round(accuracy)} m`;
+      updateGpsQuality(accuracy);
 
       if (!userMarker) {
-        userMarker = L.marker(currentLatLng).addTo(map);
+        const gpsIcon = L.divIcon({ className: 'gps-marker', html: '<span class="gps-dot"></span>', iconSize: [18, 18], iconAnchor: [9, 9] });
+        userMarker = L.marker(currentLatLng, { icon: gpsIcon }).addTo(map);
         accuracyCircle = L.circle(currentLatLng, { radius: accuracy, color: '#007aff', opacity: 0.3, fillColor: '#007aff', fillOpacity: 0.1 }).addTo(map);
         map.setView(currentLatLng, 18);
       } else {
@@ -118,8 +120,9 @@ function addCurrentGpsPoint() {
 
 /* ---------------- Puntos / Vértices ---------------- */
 
-function addVertexMarker(latlng) {
-  const marker = L.marker(latlng, { draggable: true, icon: vertexIcon });
+function addVertexMarker(latlng, index) {
+  const icon = L.divIcon({ className: 'vertex-marker', html: `<span>${index + 1}</span>`, iconSize: [22, 22], iconAnchor: [11, 11] });
+  const marker = L.marker(latlng, { draggable: true, icon: icon });
   marker.addTo(map);
   marker.on('dragend', () => {
     const idx = pathMarkers.indexOf(marker);
@@ -139,7 +142,7 @@ function addVertexMarker(latlng) {
 function rebuildMarkers() {
   pathMarkers.forEach(m => map.removeLayer(m));
   pathMarkers = [];
-  coordinates.forEach(c => addVertexMarker([c[1], c[0]]));
+  coordinates.forEach((c, i) => addVertexMarker([c[1], c[0]], i));
 }
 
 function addPoint(pointLngLat) {
@@ -189,6 +192,8 @@ function toggleWalkTracking() {
     document.getElementById('toggleWalkBtn').className = "action-btn btn-danger";
     document.getElementById('statusBadge').textContent = "Trazando...";
     document.getElementById('statusBadge').className = "badge badge-on";
+    document.getElementById('controlPanel').classList.add('collapsed');
+    document.getElementById('showPanelBtn').style.display = 'flex';
   }
 }
 
@@ -337,7 +342,7 @@ function updateMetricsAndMap() {
   }
 
   if (coordinates.length >= 3) {
-    polygonLayer = L.polygon(leafletCoords, { color: '#28a745', fillColor: '#28a745', fillOpacity: 0.35, weight: 2 }).addTo(map);
+    polygonLayer = L.polygon(leafletCoords, { color: currentColor, fillColor: currentColor, fillOpacity: 0.35, weight: 2 }).addTo(map);
     renderMetrics();
   }
 }
@@ -372,12 +377,14 @@ function resetMeasurement() {
   pathMarkers = [];
   coordinates = [];
   currentEditingId = null;
+  currentColor = '#28a745';
   document.getElementById('areaValue').textContent = formatArea(0);
   document.getElementById('perimeterValue').textContent = formatPerimeter(0);
   document.getElementById('toggleWalkBtn').textContent = "Iniciar Rastreo";
   document.getElementById('toggleWalkBtn').className = "action-btn btn-primary";
   clearDraft();
   refreshButtons();
+  vibrate(15);
 }
 
 /* ---------------- Guardar (con notas y fotos) ---------------- */
@@ -448,12 +455,14 @@ async function confirmSaveMeasurement() {
       savedData[idx] = rec;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(savedData));
       closeModal('saveModal');
+      vibrate(20);
       alert(`"${name}" actualizado exitosamente.`);
       return;
     }
   }
 
   const id = Date.now();
+  const color = LAYER_COLORS[savedData.length % LAYER_COLORS.length];
   const record = {
     id: id,
     name: name,
@@ -462,15 +471,18 @@ async function confirmSaveMeasurement() {
     areaM2: turf.area(turfPoly),
     perimeterMeters: turf.length(turfPoly, { units: 'meters' }),
     notes: notes,
-    photoCount: photos.length
+    photoCount: photos.length,
+    color: color
   };
 
   currentEditingId = id;
+  currentColor = color;
   savedData.unshift(record);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(savedData));
   if (photos.length) { try { await dbSet(id, photos); } catch (e) { console.warn('No se pudieron guardar las fotos', e); } }
 
   closeModal('saveModal');
+  vibrate(20);
   alert(`"${name}" guardado exitosamente.`);
 }
 
@@ -501,12 +513,12 @@ function openHistoryModal() {
         : `${item.areaM2.toFixed(1)} m²`;
       const photoBadge = item.photoCount ? ' 📷' : '';
       const layerOn = !!overlayOn[item.id];
-      const color = LAYER_COLORS[i % LAYER_COLORS.length];
+      const color = item.color || LAYER_COLORS[i % LAYER_COLORS.length];
 
       return `
         <div class="saved-item">
           <div class="saved-info">
-            <h4>${item.name}${photoBadge}</h4>
+            <h4><span class="color-dot" style="background:${color};"></span>${item.name}${photoBadge}</h4>
             <p>📅 ${item.date} | 📐 <strong>${areaDisplay}</strong> (${item.perimeterMeters.toFixed(1)} m)</p>
           </div>
           <div class="saved-actions">
@@ -531,6 +543,7 @@ function loadSavedMeasurement(id) {
 
   clearWorkingState();
   currentEditingId = id;
+  currentColor = item.color || '#28a745';
   setCoordinates(item.coordinates, true);
   closeModal('historyModal');
 }
@@ -545,7 +558,8 @@ function toggleLayer(id, btn, color) {
     const item = savedData.find(d => d.id === id);
     if (!item) return;
     const lc = item.coordinates.map(c => [c[1], c[0]]);
-    overlayLayers[id] = L.polygon(lc, { color: color, weight: 2, fillColor: color, fillOpacity: 0.12 }).addTo(map);
+    const layerColor = item.color || color;
+    overlayLayers[id] = L.polygon(lc, { color: layerColor, weight: 2, fillColor: layerColor, fillOpacity: 0.12 }).addTo(map);
     overlayOn[id] = true;
     btn.textContent = 'Ocultar';
   }
@@ -631,6 +645,7 @@ function copyShareLink() {
 }
 
 function shareVia(channel) {
+  vibrate(15);
   const link = document.getElementById('shareLinkInput').value;
   if (channel === 'whatsapp') {
     window.open('https://wa.me/?text=' + encodeURIComponent(buildShareMessage(link)), '_blank');
@@ -822,6 +837,81 @@ async function dbDelete(id) {
   });
 }
 
+/* ---------------- Diseño: calidad GPS, tema, puntos ---------------- */
+
+function updateGpsQuality(accuracy) {
+  const bars = document.querySelectorAll('#gpsQuality .bar');
+  let level = accuracy <= 5 ? 4 : accuracy <= 10 ? 3 : accuracy <= 20 ? 2 : 1;
+  const color = level >= 3 ? '#34c759' : level === 2 ? '#ff9500' : '#ff3b30';
+  bars.forEach((b, i) => { b.style.background = i < level ? color : '#d0d0d5'; });
+}
+
+function applyTheme() {
+  const saved = localStorage.getItem('theme');
+  if (saved === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    const tb = document.querySelector('.theme-btn');
+    if (tb) tb.textContent = '☀️';
+  }
+}
+
+function toggleTheme() {
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  if (dark) {
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem('theme', 'light');
+    document.querySelector('.theme-btn').textContent = '🌙';
+  } else {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    localStorage.setItem('theme', 'dark');
+    document.querySelector('.theme-btn').textContent = '☀️';
+  }
+}
+
+function openVerticesModal() {
+  if (coordinates.length === 0) { alert("No hay puntos marcados."); return; }
+  renderVerticesList();
+  document.getElementById('verticesModal').style.display = 'flex';
+}
+
+function renderVerticesList() {
+  const el = document.getElementById('verticesList');
+  el.innerHTML = coordinates.map((c, i) => `
+    <div class="vertex-row">
+      <span class="vertex-idx" onclick="flyToVertex(${i})">${i + 1}</span>
+      <input type="number" step="0.000001" value="${c[1].toFixed(6)}" onchange="editVertex(${i},'lat',this.value)" title="Latitud">
+      <input type="number" step="0.000001" value="${c[0].toFixed(6)}" onchange="editVertex(${i},'lng',this.value)" title="Longitud">
+      <button class="btn-sm btn-danger" onclick="deleteVertex(${i})">✕</button>
+    </div>`).join('');
+}
+
+function editVertex(i, kind, val) {
+  const v = parseFloat(val);
+  if (isNaN(v)) return;
+  if (kind === 'lat') coordinates[i][1] = v; else coordinates[i][0] = v;
+  pushUndo();
+  rebuildMarkers();
+  updateMetricsAndMap();
+  saveDraft();
+  refreshButtons();
+}
+
+function deleteVertex(i) {
+  pushUndo();
+  coordinates.splice(i, 1);
+  const m = pathMarkers.splice(i, 1)[0];
+  if (m) map.removeLayer(m);
+  updateMetricsAndMap();
+  saveDraft();
+  refreshButtons();
+  renderVerticesList();
+}
+
+function flyToVertex(i) {
+  if (!coordinates[i]) return;
+  map.setView([coordinates[i][1], coordinates[i][0]], 19);
+}
+
 /* ---------------- Utilidades ---------------- */
 
 function vibrate(ms) {
@@ -850,10 +940,13 @@ function loadFromSharedUrl() {
 /* ---------------- Inicio ---------------- */
 
 function initApp() {
+  applyTheme();
   initMap();
   if (!loadFromSharedUrl()) {
     loadDraft();
   }
+  const splash = document.getElementById('splash');
+  if (splash) splash.classList.add('hidden');
 }
 
 window.onload = initApp;
